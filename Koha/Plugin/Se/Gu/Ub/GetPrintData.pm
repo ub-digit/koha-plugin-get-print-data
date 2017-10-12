@@ -1,0 +1,195 @@
+package Koha::Plugin::Se::Gu::Ub::GetPrintData;
+
+## It's good practive to use Modern::Perl
+use Modern::Perl;
+
+## Required for all plugins
+use base qw(Koha::Plugins::Base);
+
+## We will also need to include any Koha libraries we want to access
+use C4::Context;
+use C4::Members;
+use C4::Auth;
+use Koha::DateUtils;
+use Koha::Libraries;
+use Koha::Patron::Categories;
+use Koha::Account;
+use Koha::Account::Lines;
+use MARC::Record;
+use Cwd qw(abs_path);
+use URI::Escape qw(uri_unescape);
+use LWP::UserAgent;
+use C4::Biblio;         # GetBiblioData GetMarcPrice
+use LWP::Simple::Post qw(post);
+use LWP::UserAgent;
+use URI::Escape;
+use Koha::Libraries;
+use Koha::AuthorisedValues;
+
+
+## Here we set our plugin version
+our $VERSION = "0.01";
+
+## Here is our metadata, some keys are required, some are optional
+our $metadata = {
+    name            => 'Get Print Data Plugin',
+    author          => 'Johan Larsson',
+    date_authored   => '2017-10-02',
+    date_updated    => '2017-10-02',,
+    minimum_version => '17.05',
+    maximum_version => undef,
+    version         => $VERSION,
+    description     => 'TODO: Write description here',
+};
+
+## This is the minimum code required for a plugin's 'new' method
+## More can be added, but none should be removed
+sub new {
+    my ( $class, $args ) = @_;
+
+    ## We need to add our metadata here so our base class can access it
+    $args->{'metadata'} = $metadata;
+    $args->{'metadata'}->{'class'} = $class;
+
+    ## Here, we call the 'new' method for our base class
+    ## This runs some additional magic and checking
+    ## and returns our actual $self
+    my $self = $class->SUPER::new($args);
+
+    return $self;
+}
+
+
+
+sub add_reserve_after {
+    my ($self, $args) = @_;
+    ## send request to bestall for printing info here
+    my $api_url = $self->retrieve_data('api_url');
+    my $api_key = $self->retrieve_data('api_key');
+
+    if (!$api_url) {
+        return $args;
+    }
+    if (!$api_key) {
+        return $args; 
+    }
+
+    ## Get biblio
+    my $biblio = $args->{'hold'}->biblio();
+    my $item = $args->{'hold'}->item(); 
+    my $borrower = $args->{'hold'}->borrower();
+    my $sublocation = Koha::Libraries->find($item->location()); 
+    my $location_name = Koha::Libraries->find($item->homebranch())->branchname;
+
+    my $category_auth_value = 'LOC';
+    my $av = Koha::AuthorisedValues->find( { 
+        category => $category_auth_value,
+        authorised_value => $item->location(),
+    });
+
+    ## construct hash for API
+    my %fields = (
+        "location" => $location_name,
+        "sublocation" => $av->lib(),
+        "sublocation_id" => $item->location(),
+        "call_number" => $item->itemcallnumber(),
+        "barcode" => $item->barcode(),
+        "biblio_id" => $biblio->biblionumber(),
+        "author" => $biblio->author(),
+        "title" => $biblio->title(),
+        "alt_title" => $biblio->unititle(),
+        "volume" => $item->enumchron(),
+        "place" => "",
+        "edition" => "",
+        "serie" => $biblio->serial(),
+        "notes" => $biblio->notes(),
+        "description" => "",
+        "loantype" => "",
+        "extra_info" => $args->{'hold'}->reservenotes(),
+        "name" => $borrower->firstname() . ' ' . $borrower->surname(),
+        "borrowernumber" => $borrower->borrowernumber(),
+        "pickup_location" => $borrower->branchcode(),
+    );
+
+
+    ## construct query as string 
+    my $query = '?';
+    
+    foreach my $key (keys %fields) {
+        my $val = '';
+        if ($fields{$key}) {
+            $val = $fields{$key};
+        }
+        $query .= $key . '=' . uri_escape($val) . '&';
+    }
+
+    my $response = post($api_url .  $query . 'api_key=' . $api_key );
+   # my $response = "OK";
+
+    ## LOG RESPONSE TO FILE 
+    my $log_msg = localtime() . " STATUS: $response\n";
+    my $log_file_handle;
+    open ($log_file_handle, '>>', $self->retrieve_data('log_file_path')) or die("Cannot open $self->retrieve_data('log_file_path')");
+    print $log_file_handle $log_msg;
+    close ($log_file_handle) or die ("Unable to close $self->retrieve_data('log_file_path')");
+
+    use Data::Dumper;
+    print DEBUG Dumper($item->unblessed);
+    print DEBUG Dumper(%fields);
+    print DEBUG Dumper($response);
+    close(DEBUG);
+
+    return $args;
+}
+
+
+## If your tool is complicated enough to needs it's own setting/configuration
+## you will want to add a 'configure' method to your plugin like so.
+## Here I am throwing all the logic into the 'configure' method, but it could
+## be split up like the 'report' method is.
+sub configure {
+    my ( $self, $args ) = @_;
+    my $cgi = $self->{'cgi'};
+
+
+    my $libraries = Koha::Libraries->as_list();
+
+    unless ( $cgi->param('save') ) {
+        my $template = $self->get_template({ file => 'configure.tt' });
+
+        ## Grab the values we already have for our settings, if any exist
+        $template->param(
+            api_url => $self->retrieve_data('api_url'),
+            api_key => $self->retrieve_data('api_key'),
+            log_file_path => $self->retrieve_data('log_file_path'),
+        );
+        print $cgi->header(-charset => 'utf-8' );
+        print $template->output();
+    }
+    else {   
+        $self->store_data(
+            {
+                api_url => $cgi->param('api_url'),
+                api_key => $cgi->param('api_key'),
+                log_file_path => $cgi->param('log_file_path'),
+            }
+        );
+        $self->go_home();
+    }
+}
+
+
+
+sub install {
+    my ($self, $args) = @_;
+    return 1;
+}
+
+sub uninstall {
+    my ($self, $args) = @_;
+    return 1;
+}
+
+
+
+1;
