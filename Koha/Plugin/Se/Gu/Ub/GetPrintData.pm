@@ -25,6 +25,7 @@ use LWP::UserAgent;
 use URI::Escape;
 use Koha::Libraries;
 use Koha::AuthorisedValues;
+use utf8;
 
 
 ## Here we set our plugin version
@@ -80,12 +81,15 @@ sub add_reserve_after {
     my $borrower = $args->{'hold'}->borrower();
     my $sublocation = Koha::Libraries->find($item->location()); 
     my $location_name = Koha::Libraries->find($item->homebranch())->branchname;
-
     my $category_auth_value = 'LOC';
     my $av = Koha::AuthorisedValues->find( { 
         category => $category_auth_value,
         authorised_value => $item->location(),
     });
+
+    ## find correct loantype in string
+    my $reserve_notes = $args->{'hold'}->reservenotes();
+    my ($loantype) = $reserve_notes =~ /^L.netyp: ?(.*)$/m;
 
     ## construct hash for API
     my %fields = (
@@ -104,7 +108,7 @@ sub add_reserve_after {
         "serie" => $biblio->serial(),
         "notes" => $biblio->notes(),
         "description" => "",
-        "loantype" => "",
+        "loantype" => $loantype,
         "extra_info" => $args->{'hold'}->reservenotes(),
         "name" => $borrower->firstname() . ' ' . $borrower->surname(),
         "borrowernumber" => $borrower->borrowernumber(),
@@ -114,7 +118,6 @@ sub add_reserve_after {
 
     ## construct query as string 
     my $query = '?';
-    
     foreach my $key (keys %fields) {
         my $val = '';
         if ($fields{$key}) {
@@ -122,23 +125,17 @@ sub add_reserve_after {
         }
         $query .= $key . '=' . uri_escape($val) . '&';
     }
-
     my $response = post($api_url .  $query . 'api_key=' . $api_key );
-   # my $response = "OK";
-
-    ## LOG RESPONSE TO FILE 
-    my $log_msg = localtime() . " STATUS: $response\n";
-    my $log_file_handle;
-    open ($log_file_handle, '>>', $self->retrieve_data('log_file_path')) or die("Cannot open $self->retrieve_data('log_file_path')");
-    print $log_file_handle $log_msg;
-    close ($log_file_handle) or die ("Unable to close $self->retrieve_data('log_file_path')");
-
-    use Data::Dumper;
-    print DEBUG Dumper($item->unblessed);
-    print DEBUG Dumper(%fields);
-    print DEBUG Dumper($response);
-    close(DEBUG);
-
+    ## if something goes wrong dump to file and continue 
+    if (!$response) {
+        my $handle; 
+        my $filename =  $self->retrieve_data('log_file_path') . 'add_reserve_after-' . localtime() . '.log';
+        $filename =~ s/\s//g;
+        use Data::Dumper;
+        open ($handle, '>' . $filename);
+        print $handle Dumper(%fields);
+        close ($handle) or die ("Unable to close file");
+    }
     return $args;
 }
 
