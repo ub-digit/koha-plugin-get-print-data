@@ -26,7 +26,7 @@ use URI::Escape;
 use Koha::Libraries;
 use Koha::AuthorisedValues;
 use utf8;
-
+use Encode qw(decode encode);
 
 ## Here we set our plugin version
 our $VERSION = "0.01";
@@ -40,7 +40,7 @@ our $metadata = {
     minimum_version => '17.05',
     maximum_version => undef,
     version         => $VERSION,
-    description     => 'TODO: Write description here',
+    description     => 'Makes an API-call to bestall-api that will print the reservenote',
 };
 
 ## This is the minimum code required for a plugin's 'new' method
@@ -84,7 +84,7 @@ sub add_reserve_after {
     my $category_auth_value = 'LOC';
     my $av = Koha::AuthorisedValues->find( { 
         category => $category_auth_value,
-        authorised_value => $item->location(),
+        authorised_value =>  $item->location(),
     });
 
     ## find correct loantype in string
@@ -94,7 +94,7 @@ sub add_reserve_after {
     ## construct hash for API
     my %fields = (
         "location" => $location_name,
-        "sublocation" => $av->lib(),
+        "sublocation" => Encode::encode('UTF-8', $av->lib(), Encode::FB_CROAK),
         "sublocation_id" => $item->location(),
         "call_number" => $item->itemcallnumber(),
         "barcode" => $item->barcode(),
