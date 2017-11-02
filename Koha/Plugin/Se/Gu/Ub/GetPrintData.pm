@@ -78,6 +78,13 @@ sub add_reserve_after {
     ## Get biblio
     my $biblio = $args->{'hold'}->biblio();
     my $item = $args->{'hold'}->item(); 
+    if (!$item) {
+        return $args;
+    }
+    if ($item->onloan()) {
+        return $args;
+    }
+
     my $borrower = $args->{'hold'}->borrower();
     my $sublocation = Koha::Libraries->find($item->location()); 
     my $location_name = Koha::Libraries->find($item->homebranch())->branchname;
@@ -86,6 +93,11 @@ sub add_reserve_after {
         category => $category_auth_value,
         authorised_value =>  $item->location(),
     });
+
+    use Data::Dumper;
+    open(DEBUG, '>/var/tmp/add_reserve.log');
+    print DEBUG Dumper($args->{'hold'});
+    close(DEBUG);
 
     ## find correct loantype in string
     my $reserve_notes = $args->{'hold'}->reservenotes();
