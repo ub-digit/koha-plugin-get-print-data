@@ -85,6 +85,25 @@ sub add_reserve_after {
         return $args;
     }
 
+    my $item_number = $item->itemnumber();
+    my $priority = $args->{'hold'}->priority();
+    my $holds = $biblio->holds();
+    my $lowest_found_priority = undef;
+    foreach my $hold (@{$holds->unblessed}) {
+        if ($hold->{'itemnumber'} && $hold->{'itemnumber'} == $item_number) {
+            if (!$lowest_found_priority) {
+                $lowest_found_priority = $hold->{'priority'};
+            }
+            else {
+                if ($lowest_found_priority > $hold->{'priority'}) {
+                    $lowest_found_priority = $hold->{'priority'};
+                }
+            }
+        }
+    }
+    if ($lowest_found_priority != $priority) {
+        return $args;
+    } 
     my $borrower = $args->{'hold'}->borrower();
     my $sublocation = Koha::Libraries->find($item->location()); 
     my $location_name = Koha::Libraries->find($item->homebranch())->branchname;
@@ -94,10 +113,6 @@ sub add_reserve_after {
         authorised_value =>  $item->location(),
     });
 
-    use Data::Dumper;
-    open(DEBUG, '>/var/tmp/add_reserve.log');
-    print DEBUG Dumper($args->{'hold'});
-    close(DEBUG);
 
     ## find correct loantype in string
     my $reserve_notes = $args->{'hold'}->reservenotes();
