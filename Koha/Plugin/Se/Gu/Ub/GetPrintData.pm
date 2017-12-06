@@ -9,6 +9,7 @@ use base qw(Koha::Plugins::Base);
 ## We will also need to include any Koha libraries we want to access
 use C4::Context;
 use C4::Members;
+use C4::Members::Attributes;
 use C4::Auth;
 use Koha::DateUtils;
 use Koha::Libraries;
@@ -60,7 +61,7 @@ sub new {
     return $self;
 }
 
-
+    
 
 sub add_reserve_after {
     my ($self, $args) = @_;
@@ -107,12 +108,22 @@ sub add_reserve_after {
     my $borrower = $args->{'hold'}->borrower();
     my $sublocation = Koha::Libraries->find($item->location()); 
     my $location_name = Koha::Libraries->find($item->homebranch())->branchname;
+    my $pickup_location_name = Koha::Libraries->find($borrower->branchcode())->branchname;
+    my $borrower_attributes = C4::Members::Attributes::GetBorrowerAttributes($borrower->borrowernumber());
+    # map patron's attributes into a more convenient structure
+    my %attr_hash = ();
+    foreach my $attr (@$borrower_attributes) {
+        push @{ $attr_hash{$attr->{code}} }, $attr->{value};
+    }
+    my $value_of_print = '';
+    if ($attr_hash{PRINT}) {
+        $value_of_print =  $attr_hash{PRINT};
+    }
     my $category_auth_value = 'LOC';
     my $av = Koha::AuthorisedValues->find( { 
         category => $category_auth_value,
-        authorised_value =>  $item->location(),
+        authorised_value =>  $item->permanent_location(),
     });
-
 
     ## find correct loantype in string
     my $reserve_notes = $args->{'hold'}->reservenotes();
@@ -134,12 +145,12 @@ sub add_reserve_after {
         "edition" => "",
         "serie" => Encode::encode('UTF-8', $biblio->serial(), Encode::FB_CROAK),
         "notes" => Encode::encode('UTF-8', $biblio->notes(), Encode::FB_CROAK),
-        "description" => "",
+        "description" => Encode::encode('UTF-8', $value_of_print, Encode::FB_CROAK),
         "loantype" => Encode::encode('UTF-8', $loantype, Encode::FB_CROAK),
         "extra_info" => Encode::encode('UTF-8', $args->{'hold'}->reservenotes(), Encode::FB_CROAK),
         "name" => Encode::encode('UTF-8', $borrower->firstname() . ' ' . $borrower->surname(), Encode::FB_CROAK),
         "borrowernumber" => $borrower->borrowernumber(),
-        "pickup_location" => $borrower->branchcode(),
+        "pickup_location" =>Encode::encode('UTF-8', $pickup_location_name, Encode::FB_CROAK), 
     );
 
 
