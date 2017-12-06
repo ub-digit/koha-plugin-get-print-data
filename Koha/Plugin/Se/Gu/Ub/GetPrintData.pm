@@ -110,15 +110,16 @@ sub add_reserve_after {
     my $location_name = Koha::Libraries->find($item->homebranch())->branchname;
     my $pickup_location_name = Koha::Libraries->find($borrower->branchcode())->branchname;
     my $borrower_attributes = C4::Members::Attributes::GetBorrowerAttributes($borrower->borrowernumber());
-    # map patron's attributes into a more convenient structure
-    my %attr_hash = ();
+    
+    # filter out only code==PRINT
+    my @filtered_borrower_attributes = ();
     foreach my $attr (@$borrower_attributes) {
-        push @{ $attr_hash{$attr->{code}} }, $attr->{value};
+        if ($attr->{code} eq 'PRINT') {
+            #PUSH VALUE TO ARRAY
+            push @filtered_borrower_attributes, $attr->{value};
+        }
     }
-    my $value_of_print = '';
-    if ($attr_hash{PRINT}) {
-        $value_of_print =  $attr_hash{PRINT};
-    }
+    my $print_str = join(':', @filtered_borrower_attributes);
     my $category_auth_value = 'LOC';
     my $av = Koha::AuthorisedValues->find( { 
         category => $category_auth_value,
@@ -133,7 +134,7 @@ sub add_reserve_after {
     my %fields = (
         "location" => Encode::encode('UTF-8', $location_name, Encode::FB_CROAK),
         "sublocation" => Encode::encode('UTF-8', $av->lib(), Encode::FB_CROAK),
-        "sublocation_id" => $item->location(),
+        "sublocation_id" => $item->permanent_location(),
         "call_number" => Encode::encode('UTF-8', $item->itemcallnumber(), Encode::FB_CROAK),
         "barcode" => $item->barcode(),
         "biblio_id" => $biblio->biblionumber(),
@@ -145,9 +146,9 @@ sub add_reserve_after {
         "edition" => "",
         "serie" => Encode::encode('UTF-8', $biblio->serial(), Encode::FB_CROAK),
         "notes" => Encode::encode('UTF-8', $biblio->notes(), Encode::FB_CROAK),
-        "description" => Encode::encode('UTF-8', $value_of_print, Encode::FB_CROAK),
+        "description" => Encode::encode('UTF-8', $args->{'hold'}->reservenotes(), Encode::FB_CROAK),
         "loantype" => Encode::encode('UTF-8', $loantype, Encode::FB_CROAK),
-        "extra_info" => Encode::encode('UTF-8', $args->{'hold'}->reservenotes(), Encode::FB_CROAK),
+        "extra_info" => Encode::encode('UTF-8', $print_str, Encode::FB_CROAK),
         "name" => Encode::encode('UTF-8', $borrower->firstname() . ' ' . $borrower->surname(), Encode::FB_CROAK),
         "borrowernumber" => $borrower->borrowernumber(),
         "pickup_location" =>Encode::encode('UTF-8', $pickup_location_name, Encode::FB_CROAK), 
