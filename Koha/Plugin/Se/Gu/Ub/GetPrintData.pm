@@ -108,9 +108,8 @@ sub add_reserve_after {
     my $borrower = $args->{'hold'}->borrower();
     my $sublocation = Koha::Libraries->find($item->location()); 
     my $location_name = Koha::Libraries->find($item->homebranch())->branchname;
-    my $pickup_location_name = Koha::Libraries->find($borrower->branchcode())->branchname;
+    my $pickup_location_name = Koha::Libraries->find($args->{'hold'}->branchcode())->branchname;
     my $borrower_attributes = C4::Members::Attributes::GetBorrowerAttributes($borrower->borrowernumber());
-    
     # filter out only code==PRINT
     my @filtered_borrower_attributes = ();
     foreach my $attr (@$borrower_attributes) {
