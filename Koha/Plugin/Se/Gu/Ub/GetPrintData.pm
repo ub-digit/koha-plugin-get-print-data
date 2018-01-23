@@ -125,6 +125,47 @@ sub add_reserve_after {
         authorised_value =>  $item->permanent_location(),
     });
 
+        
+    my $record = GetMarcBiblio({
+            biblionumber => $biblio->biblionumber,
+            embed_items => 1 });
+    my $marcflavour = C4::Context->preference('marcflavour');
+
+    # get title based on marcdata
+    my @title_arr = grep defined, ($record->subfield( '245', 'a' ),$record->subfield( '245', 'b' ), $record->subfield( '245', 'c' ));
+    my $title = join(' ', @title_arr);
+
+    # get subtitle based on marcdata
+    my @alt_title_arr = grep defined, ($record->subfield( '245', 'n' ), $record->subfield( '245', 'p' ));
+    my $alt_title = join(' ', @alt_title_arr);
+
+    # get serie based on marcdata
+    my @serie_arr = ();
+    if ($record->subfield( '440', 'a' ) || $record->subfield( '440', 'v' ) || $record->subfield( '440', 'n' )) {
+        @serie_arr = grep defined, ($record->subfield( '440', 'a' ), $record->subfield( '440', 'v' ), $record->subfield( '440', 'n' ));
+    }
+    else {
+        @serie_arr = grep defined, ($record->subfield( '490', 'a' ), $record->subfield( '490', 'v' ));
+    }
+    my $serie = join(' ', @serie_arr);
+
+    # get edition
+    my $edition = $record->subfield( '250', 'a' );
+
+    # get place 
+    my $place = undef;
+    if ($record->subfield( '260', 'a' )) {
+        $place = $record->subfield( '260', 'a' );
+    }
+    else {
+        $place = $record->subfield( '264', 'a' );
+    }
+
+    # add year to place 
+    my $field_008 = $record->field('008')->data();
+    my $year = substr $field_008, 7, 4;
+    $place = $place . ' ' . $year;
+
     ## find correct loantype in string
     my $reserve_notes = $args->{'hold'}->reservenotes();
     my ($loantype) = $reserve_notes =~ /^L.netyp: ?(.*)$/m;
@@ -138,12 +179,12 @@ sub add_reserve_after {
         "barcode" => $item->barcode(),
         "biblio_id" => $biblio->biblionumber(),
         "author" => Encode::encode('UTF-8', $biblio->author(), Encode::FB_CROAK),
-        "title" => Encode::encode('UTF-8', $biblio->title(), Encode::FB_CROAK),
-        "alt_title" => Encode::encode('UTF-8', $biblio->unititle(), Encode::FB_CROAK),
+        "title" => Encode::encode('UTF-8', $title, Encode::FB_CROAK),
+        "alt_title" => Encode::encode('UTF-8', $alt_title, Encode::FB_CROAK),
         "volume" => Encode::encode('UTF-8', $item->enumchron(), Encode::FB_CROAK),
-        "place" => "",
-        "edition" => "",
-        "serie" => Encode::encode('UTF-8', $biblio->serial(), Encode::FB_CROAK),
+        "place" => Encode::encode('UTF-8', $place , Encode::FB_CROAK),
+        "edition" => Encode::encode('UTF-8', $edition, Encode::FB_CROAK),
+        "serie" => Encode::encode('UTF-8', $serie , Encode::FB_CROAK),
         "notes" => Encode::encode('UTF-8', $biblio->notes(), Encode::FB_CROAK),
         "description" => Encode::encode('UTF-8', $args->{'hold'}->reservenotes(), Encode::FB_CROAK),
         "loantype" => Encode::encode('UTF-8', $loantype, Encode::FB_CROAK),
