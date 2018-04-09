@@ -92,6 +92,9 @@ sub add_reserve_after {
     my $lowest_found_priority = undef;
     foreach my $hold (@{$holds->unblessed}) {
         if ($hold->{'itemnumber'} && $hold->{'itemnumber'} == $item_number) {
+            if ($hold->{'priority'} == 0) {
+                return $args;
+            }
             if (!$lowest_found_priority) {
                 $lowest_found_priority = $hold->{'priority'};
             }
