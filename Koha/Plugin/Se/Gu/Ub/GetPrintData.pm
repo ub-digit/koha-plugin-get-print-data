@@ -61,7 +61,7 @@ sub new {
     return $self;
 }
 
-    
+
 
 sub add_reserve_after {
     my ($self, $args) = @_;
@@ -73,12 +73,12 @@ sub add_reserve_after {
         return $args;
     }
     if (!$api_key) {
-        return $args; 
+        return $args;
     }
 
     ## Get biblio
     my $biblio = $args->{'hold'}->biblio();
-    my $item = $args->{'hold'}->item(); 
+    my $item = $args->{'hold'}->item();
     if (!$item) {
         return $args;
     }
@@ -107,9 +107,9 @@ sub add_reserve_after {
     }
     if ($lowest_found_priority != $priority) {
         return $args;
-    } 
+    }
     my $borrower = $args->{'hold'}->borrower();
-    my $sublocation = Koha::Libraries->find($item->location()); 
+    my $sublocation = Koha::Libraries->find($item->location());
     my $location_name = Koha::Libraries->find($item->homebranch())->branchname;
     my $pickup_location_name = Koha::Libraries->find($args->{'hold'}->branchcode())->branchname;
     my $borrower_attributes = C4::Members::Attributes::GetBorrowerAttributes($borrower->borrowernumber());
@@ -123,12 +123,12 @@ sub add_reserve_after {
     }
     my $print_str = join(':', @filtered_borrower_attributes);
     my $category_auth_value = 'LOC';
-    my $av = Koha::AuthorisedValues->find( { 
+    my $av = Koha::AuthorisedValues->find( {
         category => $category_auth_value,
         authorised_value =>  $item->permanent_location(),
     });
 
-        
+
     my $record = GetMarcBiblio({
             biblionumber => $biblio->biblionumber,
             embed_items => 1 });
@@ -155,7 +155,16 @@ sub add_reserve_after {
     # get edition
     my $edition = $record->subfield( '250', 'a' );
 
-    # get place 
+    # get callnumber
+    my $call_number = undef;
+    if ($item->itemcallnumber()) {
+      $call_number = $item->itemcallnumber();
+    }
+    else {
+      $call_number = $record->subfield( '095', 'a' );
+    }
+
+    # get place
     my $place = undef;
     if ($record->subfield( '260', 'a' )) {
         $place = $record->subfield( '260', 'a' );
@@ -164,7 +173,7 @@ sub add_reserve_after {
         $place = $record->subfield( '264', 'a' );
     }
 
-    # add year to place 
+    # add year to place
     my $field_008 = $record->field('008')->data();
     my $year = substr $field_008, 7, 4;
     $place = $place . ' ' . $year;
@@ -178,7 +187,7 @@ sub add_reserve_after {
         "location" => Encode::encode('UTF-8', $location_name, Encode::FB_CROAK),
         "sublocation" => Encode::encode('UTF-8', $av->lib(), Encode::FB_CROAK),
         "sublocation_id" => $item->permanent_location(),
-        "call_number" => Encode::encode('UTF-8', $item->itemcallnumber(), Encode::FB_CROAK),
+        "call_number" => Encode::encode('UTF-8', $call_number, Encode::FB_CROAK),
         "barcode" => $item->barcode(),
         "biblio_id" => $biblio->biblionumber(),
         "author" => Encode::encode('UTF-8', $biblio->author(), Encode::FB_CROAK),
@@ -188,17 +197,17 @@ sub add_reserve_after {
         "place" => Encode::encode('UTF-8', $place , Encode::FB_CROAK),
         "edition" => Encode::encode('UTF-8', $edition, Encode::FB_CROAK),
         "serie" => Encode::encode('UTF-8', $serie , Encode::FB_CROAK),
-        "notes" => Encode::encode('UTF-8', $biblio->notes(), Encode::FB_CROAK),
         "description" => Encode::encode('UTF-8', $args->{'hold'}->reservenotes(), Encode::FB_CROAK),
         "loantype" => Encode::encode('UTF-8', $loantype, Encode::FB_CROAK),
         "extra_info" => Encode::encode('UTF-8', $print_str, Encode::FB_CROAK),
         "name" => Encode::encode('UTF-8', $borrower->firstname() . ' ' . $borrower->surname(), Encode::FB_CROAK),
         "borrowernumber" => $borrower->borrowernumber(),
-        "pickup_location" =>Encode::encode('UTF-8', $pickup_location_name, Encode::FB_CROAK), 
+        "pickup_location" =>Encode::encode('UTF-8', $pickup_location_name, Encode::FB_CROAK),
+        "reserve_id" => $args->{'hold'}->reserve_id(),
     );
 
 
-    ## construct query as string 
+    ## construct query as string
     my $query = '?';
     foreach my $key (keys %fields) {
         my $val = '';
@@ -208,9 +217,9 @@ sub add_reserve_after {
         $query .= $key . '=' . uri_escape($val) . '&';
     }
     my $response = post($api_url .  $query . 'api_key=' . $api_key );
-    ## if something goes wrong dump to file and continue 
+    ## if something goes wrong dump to file and continue
     if (!$response) {
-        my $handle; 
+        my $handle;
         my $filename =  $self->retrieve_data('log_file_path') . 'add_reserve_after-' . localtime() . '.log';
         $filename =~ s/\s//g;
         use Data::Dumper;
@@ -245,7 +254,7 @@ sub configure {
         print $cgi->header(-charset => 'utf-8' );
         print $template->output();
     }
-    else {   
+    else {
         $self->store_data(
             {
                 api_url => $cgi->param('api_url'),
