@@ -182,6 +182,11 @@ sub add_reserve_after {
     my $reserve_notes = $args->{'hold'}->reservenotes();
     my ($loantype) = $reserve_notes =~ /^L.netyp: ?(.*)$/m;
 
+    my $categorycode = " (" . $borrower->categorycode() . ")";
+    if ($borrower->categorycode() ~~ ["SY", "FY"]) {
+        $categorycode = "";
+    }
+
     ## construct hash for API
     my %fields = (
         "location" => Encode::encode('UTF-8', $location_name, Encode::FB_CROAK),
@@ -200,7 +205,7 @@ sub add_reserve_after {
         "description" => Encode::encode('UTF-8', $args->{'hold'}->reservenotes(), Encode::FB_CROAK),
         "loantype" => Encode::encode('UTF-8', $loantype, Encode::FB_CROAK),
         "extra_info" => Encode::encode('UTF-8', $print_str, Encode::FB_CROAK),
-        "name" => Encode::encode('UTF-8', $borrower->firstname() . ' ' . $borrower->surname(), Encode::FB_CROAK),
+        "name" => Encode::encode('UTF-8', $borrower->firstname() . ' ' . $borrower->surname() . $categorycode, Encode::FB_CROAK),
         "borrowernumber" => $borrower->borrowernumber(),
         "pickup_location" =>Encode::encode('UTF-8', $pickup_location_name, Encode::FB_CROAK),
         "reserve_id" => $args->{'hold'}->reserve_id(),
