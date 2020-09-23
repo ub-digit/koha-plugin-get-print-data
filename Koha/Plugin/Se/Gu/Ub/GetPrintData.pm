@@ -9,7 +9,6 @@ use base qw(Koha::Plugins::Base);
 ## We will also need to include any Koha libraries we want to access
 use C4::Context;
 use C4::Members;
-use C4::Members::Attributes;
 use C4::Auth;
 use Koha::DateUtils;
 use Koha::Libraries;
@@ -112,7 +111,7 @@ sub add_reserve_after {
     my $sublocation = Koha::Libraries->find($item->location());
     my $location_name = Koha::Libraries->find($item->homebranch())->branchname;
     my $pickup_location_name = Koha::Libraries->find($args->{'hold'}->branchcode())->branchname;
-    my $borrower_attributes = C4::Members::Attributes::GetBorrowerAttributes($borrower->borrowernumber());
+    my $borrower_attributes = $borrower->extended_attributes;
     # filter out only code==PRINT
     my @filtered_borrower_attributes = ();
     foreach my $attr (@$borrower_attributes) {
