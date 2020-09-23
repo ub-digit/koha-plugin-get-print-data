@@ -114,7 +114,7 @@ sub add_reserve_after {
     my $borrower_attributes = $borrower->extended_attributes;
     # filter out only code==PRINT
     my @filtered_borrower_attributes = ();
-    foreach my $attr (@$borrower_attributes) {
+    foreach my $attr (@{$borrower_attributes->unblessed}) {
         if ($attr->{code} eq 'PRINT') {
             #PUSH VALUE TO ARRAY
             push @filtered_borrower_attributes, $attr->{value};
