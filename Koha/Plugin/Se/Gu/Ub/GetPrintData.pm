@@ -128,7 +128,7 @@ sub add_reserve_after {
     });
 
 
-    my $record = GetMarcBiblio({
+    my $record = C4::Biblio::GetMarcBiblio({
             biblionumber => $biblio->biblionumber,
             embed_items => 1 });
     my $marcflavour = C4::Context->preference('marcflavour');
