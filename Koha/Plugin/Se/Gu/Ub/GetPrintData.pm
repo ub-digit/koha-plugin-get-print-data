@@ -117,7 +117,7 @@ sub add_reserve_after {
     foreach my $attr (@{$borrower_attributes->unblessed}) {
         if ($attr->{code} eq 'PRINT') {
             #PUSH VALUE TO ARRAY
-            push @filtered_borrower_attributes, $attr->{value};
+            push @filtered_borrower_attributes, $attr->{attribute};
         }
     }
     my $print_str = join(':', @filtered_borrower_attributes);
