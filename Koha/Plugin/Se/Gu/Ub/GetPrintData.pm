@@ -127,10 +127,7 @@ sub add_reserve_after {
         authorised_value =>  $item->permanent_location(),
     });
 
-
-    my $record = C4::Biblio::GetMarcBiblio({
-            biblionumber => $biblio->biblionumber,
-            embed_items => 1 });
+    my $record = $biblio->metadata->record({ embed_items => 1 });
     my $marcflavour = C4::Context->preference('marcflavour');
 
     # get title based on marcdata
