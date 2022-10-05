@@ -29,15 +29,15 @@ use utf8;
 use Encode qw(decode encode);
 
 ## Here we set our plugin version
-our $VERSION = "0.01";
+our $VERSION = "1.0.0";
 
 ## Here is our metadata, some keys are required, some are optional
 our $metadata = {
     name            => 'Get Print Data Plugin',
     author          => 'Johan Larsson',
     date_authored   => '2017-10-02',
-    date_updated    => '2017-10-02',,
-    minimum_version => '17.05',
+    date_updated    => '2022-10-05',,
+    minimum_version => '22.05',
     maximum_version => undef,
     version         => $VERSION,
     description     => 'Makes an API-call to bestall-api that will print the reservenote',
@@ -62,37 +62,37 @@ sub new {
 
 
 
-sub add_reserve_after {
-    my ($self, $args) = @_;
+sub after_hold_action {
+    my ($self, $params) = @_;
+
+    my $action = $params->{action};
+    my $payload = $params->{payload};
+
+    return unless($action eq "place");
+
+    my $hold = $payload->{hold};
+
     ## send request to bestall for printing info here
     my $api_url = $self->retrieve_data('api_url');
     my $api_key = $self->retrieve_data('api_key');
 
-    if (!$api_url) {
-        return $args;
-    }
-    if (!$api_key) {
-        return $args;
-    }
+    return unless($api_url);
+    return unless($api_key);
 
     ## Get biblio
-    my $biblio = $args->{'hold'}->biblio();
-    my $item = $args->{'hold'}->item();
-    if (!$item) {
-        return $args;
-    }
-    if ($item->onloan()) {
-        return $args;
-    }
+    my $biblio = $hold->biblio();
+    my $item = $hold->item();
+    return if(!$item);
+    return if($item->onloan());
 
     my $item_number = $item->itemnumber();
-    my $priority = $args->{'hold'}->priority();
+    my $priority = $hold->priority();
     my $holds = $biblio->holds();
     my $lowest_found_priority = undef;
     foreach my $hold (@{$holds->unblessed}) {
         if ($hold->{'itemnumber'} && $hold->{'itemnumber'} == $item_number) {
             if ($hold->{'priority'} == 0) {
-                return $args;
+                return;
             }
             if (!$lowest_found_priority) {
                 $lowest_found_priority = $hold->{'priority'};
@@ -105,12 +105,12 @@ sub add_reserve_after {
         }
     }
     if ($lowest_found_priority != $priority) {
-        return $args;
+        return;
     }
-    my $borrower = $args->{'hold'}->borrower();
+    my $borrower = $hold->borrower();
     my $sublocation = Koha::Libraries->find($item->location());
     my $location_name = Koha::Libraries->find($item->homebranch())->branchname;
-    my $pickup_location_name = Koha::Libraries->find($args->{'hold'}->branchcode())->branchname;
+    my $pickup_location_name = Koha::Libraries->find($hold->branchcode())->branchname;
     my $borrower_attributes = $borrower->extended_attributes;
     # filter out only code==PRINT
     my @filtered_borrower_attributes = ();
@@ -175,7 +175,7 @@ sub add_reserve_after {
     $place = $place . ' ' . $year;
 
     ## find correct loantype in string
-    my $reserve_notes = $args->{'hold'}->reservenotes();
+    my $reserve_notes = $hold->reservenotes();
     my ($loantype) = $reserve_notes =~ /^L.netyp: ?(.*)$/m;
 
     my $categorycode = " (" . $borrower->categorycode() . ")";
@@ -198,13 +198,13 @@ sub add_reserve_after {
         "place" => Encode::encode('UTF-8', $place , Encode::FB_CROAK),
         "edition" => Encode::encode('UTF-8', $edition, Encode::FB_CROAK),
         "serie" => Encode::encode('UTF-8', $serie , Encode::FB_CROAK),
-        "description" => Encode::encode('UTF-8', $args->{'hold'}->reservenotes(), Encode::FB_CROAK),
+        "description" => Encode::encode('UTF-8', $hold->reservenotes(), Encode::FB_CROAK),
         "loantype" => Encode::encode('UTF-8', $loantype, Encode::FB_CROAK),
         "extra_info" => Encode::encode('UTF-8', $print_str, Encode::FB_CROAK),
         "name" => Encode::encode('UTF-8', $borrower->firstname() . ' ' . $borrower->surname() . $categorycode, Encode::FB_CROAK),
         "borrowernumber" => $borrower->borrowernumber(),
         "pickup_location" =>Encode::encode('UTF-8', $pickup_location_name, Encode::FB_CROAK),
-        "reserve_id" => $args->{'hold'}->reserve_id(),
+        "reserve_id" => $hold->reserve_id(),
     );
 
 
@@ -228,7 +228,7 @@ sub add_reserve_after {
         print $handle Dumper(%fields);
         close ($handle) or die ("Unable to close file");
     }
-    return $args;
+    return;
 }
 
 
