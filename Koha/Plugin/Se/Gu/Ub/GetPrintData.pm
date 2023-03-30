@@ -202,7 +202,10 @@ sub after_hold_action {
         "loantype" => Encode::encode('UTF-8', $loantype, Encode::FB_CROAK),
         "extra_info" => Encode::encode('UTF-8', $print_str, Encode::FB_CROAK),
         "name" => Encode::encode('UTF-8', $borrower->firstname() . ' ' . $borrower->surname() . $categorycode, Encode::FB_CROAK),
+        "firstname" => Encode::encode('UTF-8', $borrower->firstname(), Encode::FB_CROAK),
+        "lastname" => Encode::encode('UTF-8', $borrower->surname(), Encode::FB_CROAK),
         "borrowernumber" => $borrower->borrowernumber(),
+        "cardnumber" => Encode::encode('UTF-8', $borrower->cardnumber(), Encode::FB_CROAK),
         "pickup_location" =>Encode::encode('UTF-8', $pickup_location_name, Encode::FB_CROAK),
         "reserve_id" => $hold->reserve_id(),
     );
