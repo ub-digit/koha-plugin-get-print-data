@@ -178,7 +178,7 @@ sub after_hold_action {
     my $reserve_notes = $hold->reservenotes();
     my ($loantype) = $reserve_notes =~ /^L.netyp: ?(.*)$/m;
 
-    my $categorycode = " (" . $borrower->categorycode() . ")";
+    my $categorycode = $borrower->categorycode();
     if ($borrower->categorycode() ~~ ["SY", "FY"]) {
         $categorycode = "";
     }
@@ -201,9 +201,9 @@ sub after_hold_action {
         "description" => Encode::encode('UTF-8', $hold->reservenotes(), Encode::FB_CROAK),
         "loantype" => Encode::encode('UTF-8', $loantype, Encode::FB_CROAK),
         "extra_info" => Encode::encode('UTF-8', $print_str, Encode::FB_CROAK),
-        "name" => Encode::encode('UTF-8', $borrower->firstname() . ' ' . $borrower->surname() . $categorycode, Encode::FB_CROAK),
         "firstname" => Encode::encode('UTF-8', $borrower->firstname(), Encode::FB_CROAK),
         "lastname" => Encode::encode('UTF-8', $borrower->surname(), Encode::FB_CROAK),
+        "categorycode" => Encode::encode('UTF-8', $categorycode, Encode::FB_CROAK),
         "borrowernumber" => $borrower->borrowernumber(),
         "cardnumber" => Encode::encode('UTF-8', $borrower->cardnumber(), Encode::FB_CROAK),
         "pickup_location" =>Encode::encode('UTF-8', $pickup_location_name, Encode::FB_CROAK),
