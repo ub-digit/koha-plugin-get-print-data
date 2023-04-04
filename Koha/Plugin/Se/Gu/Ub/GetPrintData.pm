@@ -178,11 +178,6 @@ sub after_hold_action {
     my $reserve_notes = $hold->reservenotes();
     my ($loantype) = $reserve_notes =~ /^L.netyp: ?(.*)$/m;
 
-    my $categorycode = $borrower->categorycode();
-    if ($borrower->categorycode() ~~ ["SY", "FY"]) {
-        $categorycode = "";
-    }
-
     ## construct hash for API
     my %fields = (
         "location" => Encode::encode('UTF-8', $location_name, Encode::FB_CROAK),
@@ -203,7 +198,7 @@ sub after_hold_action {
         "extra_info" => Encode::encode('UTF-8', $print_str, Encode::FB_CROAK),
         "firstname" => Encode::encode('UTF-8', $borrower->firstname(), Encode::FB_CROAK),
         "lastname" => Encode::encode('UTF-8', $borrower->surname(), Encode::FB_CROAK),
-        "categorycode" => Encode::encode('UTF-8', $categorycode, Encode::FB_CROAK),
+        "categorycode" => Encode::encode('UTF-8', $borrower->categorycode(), Encode::FB_CROAK),
         "borrowernumber" => $borrower->borrowernumber(),
         "cardnumber" => Encode::encode('UTF-8', $borrower->cardnumber(), Encode::FB_CROAK),
         "pickup_location" =>Encode::encode('UTF-8', $pickup_location_name, Encode::FB_CROAK),
