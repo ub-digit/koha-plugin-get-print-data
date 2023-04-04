@@ -29,15 +29,15 @@ use utf8;
 use Encode qw(decode encode);
 
 ## Here we set our plugin version
-our $VERSION = "1.0.0";
+our $VERSION = "1.1.0";
 
 ## Here is our metadata, some keys are required, some are optional
 our $metadata = {
     name            => 'Get Print Data Plugin',
     author          => 'Johan Larsson',
     date_authored   => '2017-10-02',
-    date_updated    => '2022-10-05',,
-    minimum_version => '22.05',
+    date_updated    => '2023-04-04',,
+    minimum_version => '22.11',
     maximum_version => undef,
     version         => $VERSION,
     description     => 'Makes an API-call to bestall-api that will print the reservenote',
