@@ -173,7 +173,7 @@ sub after_hold_action {
     my $year = undef;
     my $field_008 = $record->field('008');
     if ($field_008) {
-        my $year = substr $field_008->data(), 7, 4;
+        $year = substr $field_008->data(), 7, 4;
     }
     $place = $place . ' ' . $year;
 
