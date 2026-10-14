@@ -111,16 +111,27 @@ sub after_hold_action {
     my $sublocation = Koha::Libraries->find($item->location());
     my $location_name = Koha::Libraries->find($item->homebranch())->branchname;
     my $pickup_location_name = Koha::Libraries->find($hold->branchcode())->branchname;
-    my $borrower_attributes = $borrower->extended_attributes;
-    # filter out only code==PRINT
+
+    my $borrower_attributes = $borrower->extended_attributes->unblessed;
     my @filtered_borrower_attributes = ();
-    foreach my $attr (@{$borrower_attributes->unblessed}) {
+    # filter out code==PRINTTILLST
+    foreach my $attr (@{$borrower_attributes}) {
+        if ($attr->{code} eq 'PRINTTILLST') {
+            my $auth_value = Koha::AuthorisedValues->find( {category => "BESTTILLST", authorised_value => $attr->{attribute}});
+            #PUSH VALUE TO ARRAY
+            push @filtered_borrower_attributes, $auth_value->lib();
+        }
+    }
+
+    # filter out code==PRINT
+    foreach my $attr (@{$borrower_attributes}) {
         if ($attr->{code} eq 'PRINT') {
             #PUSH VALUE TO ARRAY
             push @filtered_borrower_attributes, $attr->{attribute};
         }
     }
-    my $print_str = join(':', @filtered_borrower_attributes);
+
+    my $print_str = join(' ', @filtered_borrower_attributes);
     my $category_auth_value = 'LOC';
     my $av = Koha::AuthorisedValues->find( {
         category => $category_auth_value,
